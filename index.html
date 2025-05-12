@@ -50,6 +50,17 @@
   </style>
 </head>
 <body>
+    <!-- Password Masuk Web -->
+<div id="login-box" style="text-align:center; padding: 2rem;">
+  <h2>🔐 Akses Materi Geografi</h2>
+  <p>Masukkan password untuk membuka halaman:</p>
+  <input type="password" id="password-input" placeholder="Masukkan password">
+  <br><br>
+  <button onclick="checkPassword()">Masuk</button>
+  <p id="login-message" style="color: red; margin-top: 1rem;"></p>
+</div>
+
+<div id="content" style="display: none;">
 
 <header>
   <h1>📚 Materi Geografi</h1>
@@ -163,6 +174,23 @@
 <footer>
   &copy; 2025 Materi Geografi | Haqi Amrullah, S.Pd. | Halaman Utama
 </footer>
+</div> <!-- penutup #content -->
+
+<!-- penutup Password -->
+<script>
+  function checkPassword() {
+    const password = document.getElementById("password-input").value;
+    const correct = "geografi1234";
+    const message = document.getElementById("login-message");
+
+    if (password === correct) {
+      document.getElementById("login-box").style.display = "none";
+      document.getElementById("content").style.display = "block";
+    } else {
+      message.innerText = "❌ Password salah. Coba lagi.";
+    }
+  }
+</script>
 
 </body>
 </html>
