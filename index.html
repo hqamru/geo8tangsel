@@ -1566,67 +1566,44 @@
     }
 
     async function saveResult() {
-      if (currentRecordCount >= 999) {
-        showToast('Batas maksimum 999 riwayat tercapai. Hapus beberapa riwayat terlebih dahulu.');
-        return;
-      }
+  const saveBtn = document.getElementById('save-btn');
+  saveBtn.classList.add('loading');
+  saveBtn.textContent = 'Menyimpan...';
 
-      const saveBtn = document.getElementById('save-btn');
-      saveBtn.classList.add('loading');
-      saveBtn.textContent = 'Menyimpan...';
+  const studentName = document.getElementById('student-name').value.trim();
+  const studentClass = document.getElementById('student-class').value;
+  const dailyValue = parseFloat(document.getElementById('daily-result').textContent);
+  const yearlyValue = parseFloat(document.getElementById('yearly-result').textContent);
 
-      const transportType = document.querySelector('input[name="transport"]:checked').value;
-      const transportDistance = parseFloat(document.getElementById('transport-distance').value);
-      const tvHours = parseFloat(document.getElementById('tv-hours').value);
-      const acHours = parseFloat(document.getElementById('ac-hours').value);
-      const lampHours = parseFloat(document.getElementById('lamp-hours').value);
-      const laptopHours = parseFloat(document.getElementById('laptop-hours').value);
-      const waterLiters = parseFloat(document.getElementById('water-liters').value);
-      const foodType = document.querySelector('input[name="food"]:checked').value;
-      const foodFrequency = parseFloat(document.getElementById('food-frequency').value);
-      const digitalHours = parseFloat(document.getElementById('digital-hours').value);
-      const bottlesCount = parseFloat(document.getElementById('bottles-count').value);
-      const wasteSorting = document.getElementById('waste-sorting').checked;
+  const record = {
+    id: Date.now().toString(),
+    date: new Date().toISOString(),
+    student_name: studentName,
+    student_class: studentClass,
+    total_daily: dailyValue,
+    total_yearly: yearlyValue
+  };
 
-      const dailyValue = parseFloat(document.getElementById('daily-result').textContent);
-      const yearlyValue = parseFloat(document.getElementById('yearly-result').textContent);
-
-      const studentName = document.getElementById('student-name').value.trim();
-      const studentClass = document.getElementById('student-class').value;
-
-      const result = await window.dataSdk.create({
-        id: Date.now().toString(),
-        date: new Date().toISOString(),
-        student_name: studentName,
-        student_class: studentClass,
-        transport_type: transportType,
-        transport_distance: transportDistance,
-        tv_hours: tvHours,
-        ac_hours: acHours,
-        lamp_hours: lampHours,
-        laptop_hours: laptopHours,
-        water_liters: waterLiters,
-        paper_sheets: paperCount,
-        food_type: foodType,
-        food_frequency: foodFrequency,
-        digital_hours: digitalHours,
-        clothes_count: clothesCount,
-        bottles_count: bottlesCount,
-        waste_sorting: wasteSorting,
-        trees_planted: treesCount,
-        total_daily: dailyValue,
-        total_yearly: yearlyValue
-      });
-
-      saveBtn.classList.remove('loading');
-      saveBtn.innerHTML = `<span id="save-button-text">${window.elementSdk.config.save_button || defaultConfig.save_button}</span>`;
-
-      if (result.isOk) {
-        showToast('Hasil berhasil disimpan! ✅');
-      } else {
-        showToast('Gagal menyimpan hasil. Silakan coba lagi.');
-      }
+  try {
+    if (window.dataSdk) {
+      const result = await window.dataSdk.create(record);
+      if (!result.isOk) throw new Error('SDK gagal');
+    } else {
+      // fallback ke localStorage
+      const history = JSON.parse(localStorage.getItem('carbonHistory') || '[]');
+      history.push(record);
+      localStorage.setItem('carbonHistory', JSON.stringify(history));
     }
+    showToast('Hasil berhasil disimpan! ✅');
+    renderHistory(JSON.parse(localStorage.getItem('carbonHistory') || '[]'));
+  } catch (err) {
+    showToast('Gagal menyimpan hasil.');
+    console.error(err);
+  } finally {
+    saveBtn.classList.remove('loading');
+    saveBtn.innerHTML = '<span id="save-button-text">💾 Simpan Hasil</span>';
+  }
+}
 
     function showToast(message) {
       const toast = document.createElement('div');
@@ -1843,14 +1820,16 @@
     }
 
     function generatePDF(record) {
-      try {
-        const date = new Date(record.date);
-        const formattedDate = date.toLocaleDateString('id-ID', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        });
-
+  const pdfContent = document.createElement('div');
+  pdfContent.innerHTML = `
+    <h1>Laporan Jejak Karbon</h1>
+    <p>Nama: ${record.student_name}</p>
+    <p>Kelas: ${record.student_class}</p>
+    <p>Total Harian: ${record.total_daily.toFixed(2)} kg</p>
+    <p>Total Tahunan: ${record.total_yearly.toFixed(2)} kg</p>
+  `;
+  html2pdf().from(pdfContent).save(`JejakKarbon-${record.student_name}.pdf`);
+}
         // Create HTML content for better formatting
         const htmlContent = `<!DOCTYPE html>
 <html>
@@ -1995,6 +1974,10 @@
 
     // Initialize when page loads
     document.addEventListener('DOMContentLoaded', initializeApp);
+
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js">
+
   </script>
  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'999ade1fd737f543',t:'MTc2MjMzMDE1My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
+
