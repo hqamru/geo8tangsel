@@ -1,476 +1,1504 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+// ============================================================
+// CBT GEOGRAFI SMAN 8 KOTA TANGERANG SELATAN
+// ============================================================
 
-    <title>CBT Geografi - SMAN 8 Kota Tangerang Selatan</title>
+// URL Google Apps Script
+const GAS_URL =
+    'https://script.google.com/macros/s/AKfycbxOhIR1wQ8_qM_UZEo8yTSHQCLsdRXGZbnJhWR9U6otFdgmcn_vpC-kbOjkmdbhGH0nZg/exec';
 
-    <meta name="theme-color" content="#2563eb">
-    <meta name="description" content="CBT Geografi SMAN 8 Kota Tangerang Selatan">
 
-    <link rel="manifest" href="./manifest.json">
+// ============================================================
+// DATA UJIAN
+// ============================================================
 
-    <script src="https://cdn.tailwindcss.com"></script>
+let questions = [];
+let currentQuestion = 0;
 
-    <style>
-        * {
-            box-sizing: border-box;
+let answers =
+    JSON.parse(
+        localStorage.getItem('cbt_answers') || '{}'
+    );
+
+let studentData =
+    JSON.parse(
+        localStorage.getItem('cbt_student') || 'null'
+    );
+
+let violationCount =
+    Number(
+        localStorage.getItem('cbt_violations') || 0
+    );
+
+let submissionId =
+    localStorage.getItem('cbt_submission_id') || '';
+
+let isExamRunning = false;
+
+
+// ============================================================
+// AMBIL ELEMEN HTML
+// ============================================================
+
+const startScreen =
+    document.getElementById('start-screen');
+
+const examScreen =
+    document.getElementById('exam-screen');
+
+const resultScreen =
+    document.getElementById('result-screen');
+
+const btnMulai =
+    document.getElementById('btn-mulai');
+
+const btnPrev =
+    document.getElementById('btn-prev');
+
+const btnNext =
+    document.getElementById('btn-next');
+
+const btnSubmit =
+    document.getElementById('btn-submit');
+
+const loading =
+    document.getElementById('loading');
+
+const questionContainer =
+    document.getElementById('question-container');
+
+const navigation =
+    document.getElementById('navigation');
+
+const progressText =
+    document.getElementById('progress-text');
+
+const progressBar =
+    document.getElementById('progress-bar');
+
+
+// ============================================================
+// PENGAMAN
+// ============================================================
+
+if (!btnMulai) {
+
+    console.error(
+        'ERROR: btn-mulai tidak ditemukan.'
+    );
+
+} else {
+
+    console.log(
+        'CBT JavaScript berhasil dimuat.'
+    );
+
+}
+
+
+// ============================================================
+// FUNGSI ACAK
+// ============================================================
+
+function shuffle(array) {
+
+    const result =
+        [...array];
+
+    for (
+        let i = result.length - 1;
+        i > 0;
+        i--
+    ) {
+
+        const j =
+            Math.floor(
+                Math.random() *
+                (i + 1)
+            );
+
+        [
+            result[i],
+            result[j]
+        ] =
+        [
+            result[j],
+            result[i]
+        ];
+
+    }
+
+    return result;
+}
+
+
+// ============================================================
+// ESCAPE HTML
+// ============================================================
+
+function escapeHtml(value) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return '';
+
+    }
+
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+}
+
+
+// ============================================================
+// TOMBOL MULAI
+// ============================================================
+
+btnMulai.addEventListener(
+    'click',
+    async function () {
+
+        console.log(
+            'Tombol Mulai Ujian diklik.'
+        );
+
+
+        const nama =
+            document
+                .getElementById('input-nama')
+                .value
+                .trim();
+
+
+        const kelas =
+            document
+                .getElementById('input-kelas')
+                .value;
+
+
+        // Validasi nama
+        if (!nama) {
+
+            alert(
+                'Nama lengkap wajib diisi.'
+            );
+
+            document
+                .getElementById('input-nama')
+                .focus();
+
+            return;
         }
 
-        body {
-            margin: 0;
-            background: #f3f4f6;
-            color: #1f2937;
-            font-family: Arial, Helvetica, sans-serif;
-            user-select: none;
-            -webkit-user-select: none;
+
+        // Validasi kelas
+        if (!kelas) {
+
+            alert(
+                'Silakan pilih kelas terlebih dahulu.'
+            );
+
+            document
+                .getElementById('input-kelas')
+                .focus();
+
+            return;
         }
 
-        input,
-        select {
-            user-select: text;
-            -webkit-user-select: text;
-        }
 
-        .option-item {
-            transition: all 0.2s ease;
-        }
+        // Simpan data siswa
+        studentData = {
 
-        .option-item:hover {
-            transform: translateY(-1px);
-        }
+            nama: nama,
 
-        .option-item.selected {
-            border-color: #2563eb;
-            background: #eff6ff;
-        }
+            kelas: kelas
 
-        .progress-bar {
-            transition: width 0.3s ease;
-        }
+        };
 
-        .loading-spinner {
-            width: 42px;
-            height: 42px;
-            border: 4px solid #e5e7eb;
-            border-top-color: #2563eb;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: auto;
-        }
 
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
+        localStorage.setItem(
+            'cbt_student',
+            JSON.stringify(studentData)
+        );
+
+
+        // Reset pelanggaran
+        violationCount = 0;
+
+        localStorage.setItem(
+            'cbt_violations',
+            '0'
+        );
+
+
+        // Buat ID ujian baru
+        submissionId =
+            'CBT-' +
+            Date.now() +
+            '-' +
+            Math.random()
+                .toString(36)
+                .substring(2, 8)
+                .toUpperCase();
+
+
+        localStorage.setItem(
+            'cbt_submission_id',
+            submissionId
+        );
+
+
+        // Jika jawaban lama tidak cocok,
+        // kosongkan jawaban
+        answers = {};
+
+        localStorage.setItem(
+            'cbt_answers',
+            JSON.stringify(answers)
+        );
+
+
+        // Masuk fullscreen
+        try {
+
+            if (
+                document.documentElement.requestFullscreen
+            ) {
+
+                await document
+                    .documentElement
+                    .requestFullscreen();
+
             }
+
+        } catch (error) {
+
+            console.log(
+                'Fullscreen tidak tersedia:',
+                error
+            );
+
         }
-    </style>
-</head>
 
-<body>
 
-<!-- ========================================================= -->
-<!-- HALAMAN AWAL -->
-<!-- ========================================================= -->
+        startExam();
 
-<div id="start-screen" class="min-h-screen flex items-center justify-center p-4">
+    }
+);
 
-    <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl overflow-hidden">
 
-        <!-- Header -->
-        <div class="bg-blue-600 text-white p-6 text-center">
+// ============================================================
+// MULAI UJIAN
+// ============================================================
 
-            <div class="text-sm opacity-90 mb-2">
-                SMA NEGERI 8 KOTA TANGERANG SELATAN
+async function startExam() {
+
+    isExamRunning = true;
+
+
+    startScreen.classList.add(
+        'hidden'
+    );
+
+
+    examScreen.classList.remove(
+        'hidden'
+    );
+
+
+    document
+        .getElementById('student-info')
+        .textContent =
+        `${studentData.nama} — Kelas ${studentData.kelas}`;
+
+
+    await fetchQuestions();
+
+}
+
+
+// ============================================================
+// AMBIL SOAL
+// ============================================================
+
+async function fetchQuestions() {
+
+    loading.classList.remove(
+        'hidden'
+    );
+
+
+    try {
+
+        console.log(
+            'Mengambil soal dari Google Apps Script...'
+        );
+
+
+        const response =
+            await fetch(
+                GAS_URL +
+                '?action=getQuestions&_=' +
+                Date.now()
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                'Server tidak merespons.'
+            );
+
+        }
+
+
+        const result =
+            await response.json();
+
+
+        console.log(
+            'Data soal:',
+            result
+        );
+
+
+        if (
+            result.status !==
+            'success'
+        ) {
+
+            throw new Error(
+                result.message ||
+                'Soal gagal dimuat.'
+            );
+
+        }
+
+
+        if (
+            !result.data ||
+            result.data.length === 0
+        ) {
+
+            throw new Error(
+                'Tidak ada soal pada Google Sheet.'
+            );
+
+        }
+
+
+        // ====================================================
+        // ACAK URUTAN SOAL
+        // ====================================================
+
+        questions =
+            shuffle(
+                result.data
+            );
+
+
+        // ====================================================
+        // ACAK PILIHAN JAWABAN
+        // ====================================================
+
+        questions =
+            questions.map(
+                function (question) {
+
+                    const options = [];
+
+
+                    [
+                        'a',
+                        'b',
+                        'c',
+                        'd',
+                        'e'
+                    ].forEach(
+                        function (letter) {
+
+                            const key =
+                                'opsi_' +
+                                letter;
+
+
+                            if (
+                                question[key] !==
+                                    undefined &&
+                                question[key] !==
+                                    null &&
+                                String(
+                                    question[key]
+                                ).trim() !== ''
+                            ) {
+
+                                options.push({
+
+                                    text:
+                                        String(
+                                            question[key]
+                                        )
+
+                                });
+
+                            }
+
+                        }
+                    );
+
+
+                    return {
+
+                        ...question,
+
+                        shuffledOptions:
+                            shuffle(options)
+
+                    };
+
+                }
+            );
+
+
+        loading.classList.add(
+            'hidden'
+        );
+
+
+        questionContainer.classList.remove(
+            'hidden'
+        );
+
+
+        navigation.classList.remove(
+            'hidden'
+        );
+
+
+        btnSubmit.classList.remove(
+            'hidden'
+        );
+
+
+        currentQuestion = 0;
+
+
+        renderQuestion();
+
+
+    } catch (error) {
+
+        console.error(
+            'ERROR MEMUAT SOAL:',
+            error
+        );
+
+
+        loading.innerHTML = `
+
+            <div class="text-red-600 font-bold text-lg mb-3">
+                Gagal Memuat Soal
             </div>
 
-            <h1 class="text-2xl md:text-3xl font-bold">
-                UJIAN DARING
-            </h1>
-
-            <p class="mt-2 text-blue-100">
-                CBT Geografi
+            <p class="text-gray-600 text-sm mb-4">
+                ${escapeHtml(error.message)}
             </p>
 
-        </div>
-
-        <!-- Form -->
-        <div class="p-6 md:p-8">
-
-            <div class="mb-5">
-
-                <label
-                    for="input-nama"
-                    class="block font-semibold mb-2">
-                    Nama Lengkap
-                </label>
-
-                <input
-                    type="text"
-                    id="input-nama"
-                    placeholder="Masukkan nama lengkap"
-                    autocomplete="name"
-                    class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-
-            <div class="mb-6">
-
-                <label
-                    for="input-kelas"
-                    class="block font-semibold mb-2">
-                    Kelas
-                </label>
-
-                <select
-                    id="input-kelas"
-                    class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-
-                    <option value="">
-                        -- Pilih Kelas --
-                    </option>
-
-                    <option value="10.1">
-                        Kelas 10.1
-                    </option>
-
-                    <option value="10.2">
-                        Kelas 10.2
-                    </option>
-
-                    <option value="10.3">
-                        Kelas 10.3
-                    </option>
-
-                    <option value="10.4">
-                        Kelas 10.4
-                    </option>
-
-                </select>
-
-            </div>
-
-
-            <!-- Informasi -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-
-                <div class="font-semibold text-blue-800 mb-2">
-                    Petunjuk Ujian
-                </div>
-
-                <ul class="text-sm text-blue-700 space-y-1">
-                    <li>• Soal akan diacak.</li>
-                    <li>• Pilihan jawaban juga akan diacak.</li>
-                    <li>• Jawaban tersimpan otomatis.</li>
-                    <li>• Jangan menutup halaman sebelum selesai.</li>
-                    <li>• Nilai akan muncul setelah jawaban dikirim.</li>
-                </ul>
-
-            </div>
-
-
             <button
-                id="btn-mulai"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg transition">
+                onclick="location.reload()"
+                class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-3 rounded-lg">
 
-                Mulai Ujian
+                Muat Ulang
 
             </button>
 
-            <p class="text-center text-xs text-gray-400 mt-4">
-                Pastikan koneksi internet stabil.
-            </p>
+        `;
 
-        </div>
+    }
 
-    </div>
+}
 
-</div>
 
+// ============================================================
+// TAMPILKAN SOAL
+// ============================================================
 
-<!-- ========================================================= -->
-<!-- HALAMAN UJIAN -->
-<!-- ========================================================= -->
+function renderQuestion() {
 
-<div id="exam-screen" class="hidden min-h-screen">
+    if (
+        questions.length === 0
+    ) {
 
-    <!-- HEADER -->
+        return;
 
-    <header class="bg-blue-600 text-white sticky top-0 z-50 shadow-lg">
+    }
 
-        <div class="max-w-5xl mx-auto p-4">
 
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+    const question =
+        questions[
+            currentQuestion
+        ];
 
-                <div>
 
-                    <div class="font-bold">
-                        CBT GEOGRAFI
-                    </div>
+    const savedAnswer =
+        answers[
+            String(question.id)
+        ];
 
-                    <div
-                        id="student-info"
-                        class="text-sm text-blue-100">
-                    </div>
 
-                </div>
+    let html = `
 
-                <div
-                    id="timer"
-                    class="font-bold bg-white text-blue-600 px-4 py-2 rounded-lg text-center">
-                    Ujian
-                </div>
+        <div class="bg-white rounded-xl shadow p-5 md:p-7">
 
-            </div>
+            <div class="flex justify-between items-center mb-5">
 
-        </div>
+                <div class="text-sm font-bold text-blue-600">
 
-    </header>
+                    SOAL
+                    ${currentQuestion + 1}
+                    /
+                    ${questions.length}
 
-
-    <!-- PROGRESS -->
-
-    <div class="bg-white border-b">
-
-        <div class="max-w-5xl mx-auto px-4 py-3">
-
-            <div class="flex justify-between text-sm mb-1">
-
-                <span>
-                    Progress
-                </span>
-
-                <span id="progress-text">
-                    0 / 0
-                </span>
-
-            </div>
-
-            <div class="w-full bg-gray-200 rounded-full h-2">
-
-                <div
-                    id="progress-bar"
-                    class="progress-bar bg-blue-600 h-2 rounded-full"
-                    style="width: 0%">
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- MAIN -->
-
-    <main class="max-w-5xl mx-auto p-4 md:p-8">
-
-        <!-- LOADING -->
-
-        <div
-            id="loading"
-            class="bg-white rounded-xl shadow p-10 text-center">
-
-            <div class="loading-spinner mb-4"></div>
-
-            <p class="font-semibold">
-                Memuat soal...
-            </p>
-
-            <p class="text-sm text-gray-500 mt-2">
-                Mohon tunggu.
-            </p>
-
-        </div>
-
-
-        <!-- SOAL -->
-
-        <div
-            id="question-container"
-            class="hidden">
-        </div>
-
-
-        <!-- NAVIGASI -->
-
-        <div
-            id="navigation"
-            class="hidden mt-6 flex justify-between gap-3">
-
-            <button
-                id="btn-prev"
-                class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-5 rounded-lg">
-
-                ← Sebelumnya
-
-            </button>
-
-            <button
-                id="btn-next"
-                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg">
-
-                Berikutnya →
-
-            </button>
-
-        </div>
-
-
-        <!-- SUBMIT -->
-
-        <button
-            id="btn-submit"
-            class="hidden mt-6 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-5 rounded-xl shadow-lg">
-
-            Selesai & Kirim Jawaban
-
-        </button>
-
-    </main>
-
-</div>
-
-
-<!-- ========================================================= -->
-<!-- HALAMAN HASIL -->
-<!-- ========================================================= -->
-
-<div
-    id="result-screen"
-    class="hidden min-h-screen flex items-center justify-center p-4">
-
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
-
-        <div class="bg-green-600 text-white text-center p-8">
-
-            <div class="text-5xl mb-3">
-                ✓
-            </div>
-
-            <h1 class="text-2xl font-bold">
-                Ujian Selesai
-            </h1>
-
-            <p class="text-green-100 mt-2">
-                Jawaban berhasil direkam.
-            </p>
-
-        </div>
-
-
-        <div class="p-6">
-
-            <div class="text-center mb-6">
-
-                <div
-                    id="result-name"
-                    class="font-bold text-xl">
-                </div>
-
-                <div
-                    id="result-class"
-                    class="text-gray-500">
-                </div>
-
-            </div>
-
-
-            <!-- NILAI -->
-
-            <div class="bg-blue-50 border border-blue-200 rounded-xl p-6 text-center mb-5">
-
-                <div class="text-sm text-blue-600 font-semibold">
-                    NILAI ANDA
-                </div>
-
-                <div
-                    id="result-score"
-                    class="text-6xl font-bold text-blue-600 my-2">
-                    0
                 </div>
 
                 <div class="text-sm text-gray-500">
-                    dari 100
-                </div>
 
-            </div>
-
-
-            <!-- DETAIL -->
-
-            <div class="grid grid-cols-3 gap-3">
-
-                <div class="bg-green-50 rounded-lg p-4 text-center">
-
-                    <div class="text-sm text-gray-500">
-                        Benar
-                    </div>
-
-                    <div
-                        id="result-correct"
-                        class="text-2xl font-bold text-green-600">
-                        0
-                    </div>
-
-                </div>
-
-
-                <div class="bg-red-50 rounded-lg p-4 text-center">
-
-                    <div class="text-sm text-gray-500">
-                        Salah
-                    </div>
-
-                    <div
-                        id="result-wrong"
-                        class="text-2xl font-bold text-red-600">
-                        0
-                    </div>
-
-                </div>
-
-
-                <div class="bg-gray-100 rounded-lg p-4 text-center">
-
-                    <div class="text-sm text-gray-500">
-                        Kosong
-                    </div>
-
-                    <div
-                        id="result-empty"
-                        class="text-2xl font-bold text-gray-600">
-                        0
-                    </div>
+                    ${
+                        savedAnswer
+                        ? '✓ Sudah dijawab'
+                        : 'Belum dijawab'
+                    }
 
                 </div>
 
             </div>
 
 
-            <div class="mt-6 bg-gray-50 rounded-lg p-4 text-sm text-gray-600">
+            <div class="text-lg md:text-xl font-semibold leading-relaxed mb-6">
 
-                <div>
-                    <strong>Total Soal:</strong>
-                    <span id="result-total">0</span>
-                </div>
+                ${currentQuestion + 1}.
+                ${escapeHtml(question.pertanyaan)}
 
-                <div class="mt-1">
-                    <strong>Status:</strong>
-                    Jawaban telah tersimpan di sistem.
-                </div>
+            </div>
+
+
+            <div class="space-y-3">
+
+    `;
+
+
+    question.shuffledOptions.forEach(
+        function (option, index) {
+
+            const letter =
+                String.fromCharCode(
+                    65 + index
+                );
+
+
+            const selected =
+                savedAnswer ===
+                option.text;
+
+
+            html += `
+
+                <label
+                    class="option-item ${
+                        selected
+                        ? 'selected'
+                        : ''
+                    } block border-2 border-gray-200 rounded-xl p-4 cursor-pointer">
+
+                    <div class="flex items-start gap-3">
+
+                        <input
+                            type="radio"
+                            name="question"
+                            value="${escapeHtml(option.text)}"
+                            ${
+                                selected
+                                ? 'checked'
+                                : ''
+                            }
+                            class="mt-1 w-5 h-5">
+
+                        <div class="flex gap-3">
+
+                            <span class="font-bold">
+                                ${letter}.
+                            </span>
+
+                            <span>
+                                ${escapeHtml(option.text)}
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </label>
+
+            `;
+
+        }
+    );
+
+
+    html += `
 
             </div>
 
         </div>
 
-    </div>
-
-</div>
+    `;
 
 
-<script src="./app.js?v=3"></script>
+    questionContainer.innerHTML =
+        html;
 
-</body>
-</html>
+
+    // ========================================================
+    // EVENT RADIO
+    // ========================================================
+
+    const radios =
+        questionContainer.querySelectorAll(
+            'input[type="radio"]'
+        );
+
+
+    radios.forEach(
+        function (radio) {
+
+            radio.addEventListener(
+                'change',
+                function () {
+
+                    saveAnswer(
+                        question.id,
+                        radio.value
+                    );
+
+
+                    renderQuestion();
+
+                }
+            );
+
+        }
+    );
+
+
+    updateNavigation();
+
+    updateProgress();
+
+}
+
+
+// ============================================================
+// SIMPAN JAWABAN
+// ============================================================
+
+function saveAnswer(
+    questionId,
+    value
+) {
+
+    answers[
+        String(questionId)
+    ] =
+        value;
+
+
+    localStorage.setItem(
+        'cbt_answers',
+        JSON.stringify(answers)
+    );
+
+
+    console.log(
+        'Jawaban tersimpan:',
+        questionId,
+        value
+    );
+
+}
+
+
+// ============================================================
+// TOMBOL SEBELUMNYA
+// ============================================================
+
+btnPrev.addEventListener(
+    'click',
+    function () {
+
+        if (
+            currentQuestion > 0
+        ) {
+
+            currentQuestion--;
+
+            renderQuestion();
+
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+
+        }
+
+    }
+);
+
+
+// ============================================================
+// TOMBOL BERIKUTNYA
+// ============================================================
+
+btnNext.addEventListener(
+    'click',
+    function () {
+
+        if (
+            currentQuestion <
+            questions.length - 1
+        ) {
+
+            currentQuestion++;
+
+            renderQuestion();
+
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+
+        }
+
+    }
+);
+
+
+// ============================================================
+// NAVIGASI
+// ============================================================
+
+function updateNavigation() {
+
+    btnPrev.disabled =
+        currentQuestion === 0;
+
+
+    btnPrev.style.opacity =
+        currentQuestion === 0
+            ? '0.5'
+            : '1';
+
+
+    if (
+        currentQuestion ===
+        questions.length - 1
+    ) {
+
+        btnNext.classList.add(
+            'hidden'
+        );
+
+    } else {
+
+        btnNext.classList.remove(
+            'hidden'
+        );
+
+    }
+
+}
+
+
+// ============================================================
+// PROGRESS
+// ============================================================
+
+function updateProgress() {
+
+    const total =
+        questions.length;
+
+
+    let answered = 0;
+
+
+    questions.forEach(
+        function (question) {
+
+            if (
+                answers[
+                    String(question.id)
+                ]
+            ) {
+
+                answered++;
+
+            }
+
+        }
+    );
+
+
+    progressText.textContent =
+        `${answered} / ${total}`;
+
+
+    const percentage =
+        total > 0
+            ? (
+                answered /
+                total *
+                100
+            )
+            : 0;
+
+
+    progressBar.style.width =
+        percentage + '%';
+
+}
+
+
+// ============================================================
+// KIRIM JAWABAN
+// ============================================================
+
+btnSubmit.addEventListener(
+    'click',
+    async function () {
+
+        let unanswered = 0;
+
+
+        questions.forEach(
+            function (question) {
+
+                if (
+                    !answers[
+                        String(question.id)
+                    ]
+                ) {
+
+                    unanswered++;
+
+                }
+
+            }
+        );
+
+
+        if (
+            unanswered > 0
+        ) {
+
+            const lanjut =
+                confirm(
+                    `Masih ada ${unanswered} soal yang belum dijawab.\n\n` +
+                    `Apakah Anda yakin ingin mengirim?`
+                );
+
+
+            if (!lanjut) {
+
+                return;
+
+            }
+
+        }
+
+
+        const yakin =
+            confirm(
+                'Apakah Anda yakin ingin menyelesaikan ujian?\n\n' +
+                'Jawaban yang sudah dikirim tidak dapat diubah.'
+            );
+
+
+        if (!yakin) {
+
+            return;
+
+        }
+
+
+        await submitExam();
+
+    }
+);
+
+
+// ============================================================
+// SUBMIT KE GOOGLE APPS SCRIPT
+// ============================================================
+
+async function submitExam() {
+
+    btnSubmit.disabled =
+        true;
+
+
+    btnSubmit.textContent =
+        'Mengirim jawaban...';
+
+
+    if (!submissionId) {
+
+        submissionId =
+            'CBT-' +
+            Date.now() +
+            '-' +
+            Math.random()
+                .toString(36)
+                .substring(2, 8)
+                .toUpperCase();
+
+
+        localStorage.setItem(
+            'cbt_submission_id',
+            submissionId
+        );
+
+    }
+
+
+    const payload = {
+
+        submission_id:
+            submissionId,
+
+        nama:
+            studentData.nama,
+
+        kelas:
+            studentData.kelas,
+
+        answers:
+            answers,
+
+        violations:
+            violationCount,
+
+        submit_time:
+            new Date().toISOString()
+
+    };
+
+
+    try {
+
+        await fetch(
+            GAS_URL,
+            {
+
+                method: 'POST',
+
+                mode: 'no-cors',
+
+                headers: {
+
+                    'Content-Type':
+                        'application/x-www-form-urlencoded;charset=UTF-8'
+
+                },
+
+                body:
+                    'payload=' +
+                    encodeURIComponent(
+                        JSON.stringify(payload)
+                    )
+
+            }
+        );
+
+
+        btnSubmit.textContent =
+            'Memeriksa penyimpanan...';
+
+
+        const berhasil =
+            await checkSubmission(
+                submissionId
+            );
+
+
+        if (!berhasil) {
+
+            throw new Error(
+                'Server belum mengonfirmasi.'
+            );
+
+        }
+
+
+        await showResult();
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+
+        alert(
+            'Jawaban belum dapat dikonfirmasi tersimpan.\n\n' +
+            'Jawaban Anda masih tersimpan di perangkat.\n\n' +
+            'Jangan tutup halaman. Silakan klik Kirim Ulang.'
+        );
+
+
+        btnSubmit.disabled =
+            false;
+
+
+        btnSubmit.textContent =
+            'Kirim Ulang Jawaban';
+
+    }
+
+}
+
+
+// ============================================================
+// CEK SUBMISSION
+// ============================================================
+
+async function checkSubmission(
+    id
+) {
+
+    for (
+        let i = 0;
+        i < 15;
+        i++
+    ) {
+
+        try {
+
+            const response =
+                await fetch(
+                    GAS_URL +
+                    '?action=checkSubmission' +
+                    '&submission_id=' +
+                    encodeURIComponent(id) +
+                    '&_=' +
+                    Date.now()
+                );
+
+
+            const result =
+                await response.json();
+
+
+            console.log(
+                'Cek submission:',
+                result
+            );
+
+
+            if (
+                result.status ===
+                    'success' &&
+                result.found === true
+            ) {
+
+                return true;
+
+            }
+
+        } catch (error) {
+
+            console.log(
+                'Cek gagal:',
+                error
+            );
+
+        }
+
+
+        await sleep(1000);
+
+    }
+
+
+    return false;
+
+}
+
+
+// ============================================================
+// TAMPILKAN HASIL
+// ============================================================
+
+async function showResult() {
+
+    isExamRunning = false;
+
+
+    const id =
+        submissionId;
+
+
+    try {
+
+        const response =
+            await fetch(
+                GAS_URL +
+                '?action=getResult' +
+                '&submission_id=' +
+                encodeURIComponent(id) +
+                '&_=' +
+                Date.now()
+            );
+
+
+        const result =
+            await response.json();
+
+
+        console.log(
+            'HASIL:',
+            result
+        );
+
+
+        if (
+            result.status ===
+            'success'
+        ) {
+
+            displayResult(
+                result.data
+            );
+
+        } else {
+
+            throw new Error(
+                'Hasil tidak ditemukan.'
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+
+        alert(
+            'Jawaban sudah tersimpan, tetapi hasil nilai belum dapat ditampilkan. Silakan hubungi guru.'
+        );
+
+        return;
+
+    }
+
+
+    // Keluar fullscreen
+    try {
+
+        if (
+            document.fullscreenElement &&
+            document.exitFullscreen
+        ) {
+
+            await document.exitFullscreen();
+
+        }
+
+    } catch (error) {}
+
+
+    // Hapus data setelah benar-benar sukses
+    localStorage.removeItem(
+        'cbt_answers'
+    );
+
+    localStorage.removeItem(
+        'cbt_student'
+    );
+
+    localStorage.removeItem(
+        'cbt_submission_id'
+    );
+
+    localStorage.removeItem(
+        'cbt_violations'
+    );
+
+}
+
+
+// ============================================================
+// HASIL
+// ============================================================
+
+function displayResult(data) {
+
+    examScreen.classList.add(
+        'hidden'
+    );
+
+
+    resultScreen.classList.remove(
+        'hidden'
+    );
+
+
+    document.getElementById(
+        'result-name'
+    ).textContent =
+        data.nama || '-';
+
+
+    document.getElementById(
+        'result-class'
+    ).textContent =
+        'Kelas ' +
+        (data.kelas || '-');
+
+
+    document.getElementById(
+        'result-score'
+    ).textContent =
+        Number(
+            data.nilai || 0
+        ).toFixed(2);
+
+
+    document.getElementById(
+        'result-correct'
+    ).textContent =
+        data.benar || 0;
+
+
+    document.getElementById(
+        'result-wrong'
+    ).textContent =
+        data.salah || 0;
+
+
+    document.getElementById(
+        'result-empty'
+    ).textContent =
+        data.kosong || 0;
+
+
+    document.getElementById(
+        'result-total'
+    ).textContent =
+        data.total || 0;
+
+}
+
+
+// ============================================================
+// SLEEP
+// ============================================================
+
+function sleep(ms) {
+
+    return new Promise(
+        function (resolve) {
+
+            setTimeout(
+                resolve,
+                ms
+            );
+
+        }
+    );
+
+}
+
+
+// ============================================================
+// ANTI CHEAT
+// ============================================================
+
+document.addEventListener(
+    'contextmenu',
+    function (event) {
+
+        if (
+            isExamRunning
+        ) {
+
+            event.preventDefault();
+
+        }
+
+    }
+);
+
+
+document.addEventListener(
+    'keydown',
+    function (event) {
+
+        if (
+            !isExamRunning
+        ) {
+
+            return;
+
+        }
+
+
+        const key =
+            event.key.toLowerCase();
+
+
+        if (
+            event.key === 'F12' ||
+            (
+                event.ctrlKey &&
+                [
+                    'u',
+                    'c',
+                    'v',
+                    's',
+                    'p'
+                ].includes(key)
+            )
+        ) {
+
+            event.preventDefault();
+
+
+            violationCount++;
+
+
+            localStorage.setItem(
+                'cbt_violations',
+                violationCount
+            );
+
+        }
+
+    }
+);
+
+
+// ============================================================
+// PINDAH TAB
+// ============================================================
+
+document.addEventListener(
+    'visibilitychange',
+    function () {
+
+        if (
+            document.hidden &&
+            isExamRunning
+        ) {
+
+            violationCount++;
+
+
+            localStorage.setItem(
+                'cbt_violations',
+                violationCount
+            );
+
+
+            alert(
+                'PERINGATAN!\n\n' +
+                'Anda terdeteksi meninggalkan halaman ujian.\n\n' +
+                'Aktivitas dicatat oleh sistem.'
+            );
+
+        }
+
+    }
+);
+
+
+// ============================================================
+// FULLSCREEN
+// ============================================================
+
+document.addEventListener(
+    'fullscreenchange',
+    function () {
+
+        if (
+            !document.fullscreenElement &&
+            isExamRunning
+        ) {
+
+            violationCount++;
+
+
+            localStorage.setItem(
+                'cbt_violations',
+                violationCount
+            );
+
+
+            alert(
+                'PERINGATAN!\n\n' +
+                'Anda keluar dari layar penuh.'
+            );
+
+        }
+
+    }
+);
+
+
+// ============================================================
+// SERVICE WORKER
+// ============================================================
+
+if (
+    'serviceWorker' in navigator
+) {
+
+    window.addEventListener(
+        'load',
+        function () {
+
+            navigator.serviceWorker
+                .register(
+                    './service-worker.js'
+                )
+                .then(
+                    function () {
+
+                        console.log(
+                            'Service Worker aktif.'
+                        );
+
+                    }
+                )
+                .catch(
+                    function (error) {
+
+                        console.log(
+                            'Service Worker error:',
+                            error
+                        );
+
+                    }
+                );
+
+        }
+    );
+
+}
