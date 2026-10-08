@@ -6,7 +6,7 @@
    URL WEB APP GOOGLE APPS SCRIPT ANDA
 */
 const GAS_URL =
-    'https://script.google.com/macros/s/AKfycbxOhIR1wQ8_qM_UZEo8yTSHQCLsdRXGZbnJhWR9U6otFdgmcn_vpC-kbOjkmdbhGH0nZg/exec';
+    'https://script.google.com/macros/s/AKfycbzGHHZ3FSIaTZW9lEpYAd-bLndtNKynVTBOvDIr4P7O8icMD7ItBd3Vq70cMHRKRYtiqw/exec';
 
 
 /* =====================================================
