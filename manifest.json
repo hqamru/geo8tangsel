@@ -1,7 +1,7 @@
 {
   "name": "CBT GEOGRAFI PWA",
   "short_name": "CBT GEOGRAFI",
-  "description": "Aplikasi Ujian Daring Ringan dan Cepat",
+  "description": "Aplikasi Ujian GEOGRAFI",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
