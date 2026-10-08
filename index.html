@@ -1,48 +1,417 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CBT PWA Ringan</title>
-    <!-- Tailwind CSS CDN -->
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>CBT PWA - Ujian Daring</title>
+
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="manifest" href="manifest.json">
+
+    <!-- PWA -->
+    <link
+        rel="manifest"
+        href="./manifest.json"
+    >
+
+    <meta
+        name="theme-color"
+        content="#2563eb"
+    >
+
     <style>
-        /* Mencegah seleksi teks */
-        body { user-select: none; -webkit-user-select: none; }
+
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        input,
+        textarea {
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .option-card {
+            transition: all 0.15s ease;
+        }
+
+        .option-card:hover {
+            transform: translateY(-1px);
+        }
+
+        .option-card.selected {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen text-gray-800 font-sans">
-    
-    <!-- Screen 1: Login / Mulai -->
-    <div id="start-screen" class="flex flex-col items-center justify-center min-h-screen p-4">
-        <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md text-center">
-            <h1 class="text-2xl font-bold mb-4">Ujian Daring</h1>
-            <input type="text" id="input-nama" placeholder="Nama Lengkap" class="w-full mb-3 p-2 border rounded">
-            <input type="text" id="input-kelas" placeholder="Kelas" class="w-full mb-5 p-2 border rounded">
-            <button id="btn-mulai" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full">
-                Mulai Ujian (Layar Penuh)
-            </button>
-            <p class="text-xs text-gray-500 mt-4">Pastikan koneksi stabil. Tab tidak boleh ditukar.</p>
+
+
+<body
+    class="
+        bg-gray-100
+        min-h-screen
+        text-gray-800
+        font-sans
+    "
+>
+
+
+<!-- =====================================================
+     HALAMAN MULAI
+===================================================== -->
+
+<div
+    id="start-screen"
+    class="
+        flex
+        flex-col
+        items-center
+        justify-center
+        min-h-screen
+        p-4
+    "
+>
+
+    <div
+        class="
+            bg-white
+            p-8
+            rounded-2xl
+            shadow-lg
+            w-full
+            max-w-md
+        "
+    >
+
+        <div class="text-center">
+
+            <div
+                class="
+                    mx-auto
+                    mb-4
+                    w-16
+                    h-16
+                    rounded-full
+                    bg-blue-100
+                    flex
+                    items-center
+                    justify-center
+                    text-3xl
+                "
+            >
+                📝
+            </div>
+
+
+            <h1
+                class="
+                    text-2xl
+                    font-bold
+                    text-gray-800
+                "
+            >
+                Ujian Daring
+            </h1>
+
+
+            <p
+                class="
+                    text-sm
+                    text-gray-500
+                    mt-2
+                    mb-6
+                "
+            >
+                Silakan isi identitas sebelum memulai ujian.
+            </p>
+
         </div>
+
+
+        <!-- NAMA -->
+
+        <label
+            class="
+                block
+                text-sm
+                font-semibold
+                mb-1
+            "
+        >
+            Nama Lengkap
+        </label>
+
+        <input
+            type="text"
+            id="input-nama"
+            placeholder="Masukkan nama lengkap"
+            autocomplete="name"
+            class="
+                w-full
+                mb-4
+                p-3
+                border
+                rounded-lg
+                focus:outline-none
+                focus:ring-2
+                focus:ring-blue-500
+            "
+        >
+
+
+        <!-- KELAS -->
+
+        <label
+            class="
+                block
+                text-sm
+                font-semibold
+                mb-1
+            "
+        >
+            Kelas
+        </label>
+
+        <input
+            type="text"
+            id="input-kelas"
+            placeholder="Contoh: X-1"
+            autocomplete="off"
+            class="
+                w-full
+                mb-6
+                p-3
+                border
+                rounded-lg
+                focus:outline-none
+                focus:ring-2
+                focus:ring-blue-500
+            "
+        >
+
+
+        <!-- BUTTON MULAI -->
+
+        <button
+            id="btn-mulai"
+            class="
+                bg-blue-600
+                hover:bg-blue-700
+                text-white
+                font-bold
+                py-3
+                px-4
+                rounded-lg
+                w-full
+            "
+        >
+            Mulai Ujian
+        </button>
+
+
+        <p
+            class="
+                text-xs
+                text-gray-500
+                text-center
+                mt-4
+            "
+        >
+            Pastikan koneksi internet stabil.
+            Jangan berpindah tab selama ujian.
+        </p>
+
     </div>
 
-    <!-- Screen 2: Area Ujian -->
-    <div id="exam-screen" class="hidden flex-col min-h-screen">
-        <header class="bg-blue-600 text-white p-4 flex justify-between items-center shadow-md">
-            <h2 class="font-bold">Ujian Berlangsung</h2>
-            <div id="student-info" class="text-sm"></div>
-        </header>
-        
-        <main class="flex-grow p-4 md:p-8 max-w-3xl mx-auto w-full">
-            <div id="loading" class="text-center py-10">Memuat soal...</div>
-            <div id="question-container" class="space-y-6 hidden"></div>
-            <button id="btn-submit" class="mt-8 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded w-full hidden">
-                Kirim Jawaban Akhir
-            </button>
-        </main>
-    </div>
+</div>
 
-    <script src="app.js"></script>
+
+
+<!-- =====================================================
+     HALAMAN UJIAN
+===================================================== -->
+
+<div
+    id="exam-screen"
+    class="
+        hidden
+        flex-col
+        min-h-screen
+    "
+>
+
+
+    <!-- HEADER -->
+
+    <header
+        class="
+            bg-blue-600
+            text-white
+            p-4
+            shadow-md
+            sticky
+            top-0
+            z-20
+        "
+    >
+
+        <div
+            class="
+                max-w-4xl
+                mx-auto
+                flex
+                justify-between
+                items-center
+                gap-3
+            "
+        >
+
+            <div>
+
+                <h2
+                    class="
+                        font-bold
+                        text-lg
+                    "
+                >
+                    Ujian Berlangsung
+                </h2>
+
+                <div
+                    id="student-info"
+                    class="
+                        text-xs
+                        opacity-90
+                        mt-1
+                    "
+                ></div>
+
+            </div>
+
+
+            <div
+                id="progress-info"
+                class="
+                    text-xs
+                    bg-blue-700
+                    px-3
+                    py-2
+                    rounded-lg
+                "
+            >
+                0 / 0
+            </div>
+
+        </div>
+
+    </header>
+
+
+
+    <!-- CONTENT -->
+
+    <main
+        class="
+            flex-grow
+            p-4
+            md:p-8
+            max-w-4xl
+            mx-auto
+            w-full
+        "
+    >
+
+
+        <!-- LOADING -->
+
+        <div
+            id="loading"
+            class="
+                text-center
+                py-16
+            "
+        >
+
+            <div
+                class="
+                    text-4xl
+                    mb-4
+                "
+            >
+                ⏳
+            </div>
+
+            <p>
+                Memuat soal...
+            </p>
+
+        </div>
+
+
+        <!-- SOAL -->
+
+        <div
+            id="question-container"
+            class="
+                space-y-6
+                hidden
+            "
+        ></div>
+
+
+        <!-- SUBMIT -->
+
+        <button
+            id="btn-submit"
+            class="
+                mt-8
+                bg-green-600
+                hover:bg-green-700
+                text-white
+                font-bold
+                py-4
+                px-4
+                rounded-lg
+                w-full
+                hidden
+            "
+        >
+            Kirim Jawaban Akhir
+        </button>
+
+
+        <!-- STATUS -->
+
+        <div
+            id="status-message"
+            class="
+                text-center
+                text-sm
+                mt-4
+            "
+        ></div>
+
+    </main>
+
+</div>
+
+
+
+<!-- =====================================================
+     JAVASCRIPT
+===================================================== -->
+
+<script src="./app.js"></script>
+
+
 </body>
 </html>
