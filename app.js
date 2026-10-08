@@ -4,7 +4,7 @@
 
 // URL Google Apps Script
 const GAS_URL =
-    'https://script.google.com/macros/s/AKfycbxOhIR1wQ8_qM_UZEo8yTSHQCLsdRXGZbnJhWR9U6otFdgmcn_vpC-kbOjkmdbhGH0nZg/exec';
+    'https://script.google.com/macros/s/AKfycbwVdZBp5P1vSfFWKCeLOY8YLwpoDDj5UpiCxdIYBLG5HgIgo-jua-UrGt6i9YkjavDB_Q/exec';
 
 
 // ============================================================
