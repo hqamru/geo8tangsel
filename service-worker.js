@@ -1,48 +1,175 @@
-const CACHE_NAME = 'cbt-pwa-v1';
-const urlsToCache = [
-  './',
-  './index.html',
-  './app.js',
-  './manifest.json'
+const CACHE_NAME =
+    'cbt-geo8tangsel-v3';
+
+
+const APP_FILES = [
+
+    './',
+
+    './index.html',
+
+    './app.js',
+
+    './manifest.json'
+
 ];
 
-// Install Event - Caching aset
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(urlsToCache);
-      })
-  );
-});
 
-// Fetch Event - Serve dari Cache, fallback ke Network
-self.addEventListener('fetch', event => {
-  // Hanya intercept method GET
-  if (event.request.method !== 'GET') return;
+// ============================================================
+// INSTALL
+// ============================================================
 
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response; // Return dari cache jika ada
+self.addEventListener(
+    'install',
+    event => {
+
+        self.skipWaiting();
+
+        event.waitUntil(
+
+            caches
+                .open(CACHE_NAME)
+                .then(
+                    cache =>
+                        cache.addAll(
+                            APP_FILES
+                        )
+                )
+
+        );
+
+    }
+);
+
+
+// ============================================================
+// ACTIVATE
+// ============================================================
+
+self.addEventListener(
+    'activate',
+    event => {
+
+        event.waitUntil(
+
+            caches
+                .keys()
+                .then(
+                    keys =>
+
+                        Promise.all(
+
+                            keys
+                                .filter(
+                                    key =>
+                                        key !==
+                                        CACHE_NAME
+                                )
+                                .map(
+                                    key =>
+                                        caches.delete(
+                                            key
+                                        )
+                                )
+
+                        )
+
+                )
+                .then(
+                    () =>
+                        self.clients.claim()
+                )
+
+        );
+
+    }
+);
+
+
+// ============================================================
+// FETCH
+// ============================================================
+
+self.addEventListener(
+    'fetch',
+    event => {
+
+        const request =
+            event.request;
+
+
+        const url =
+            new URL(
+                request.url
+            );
+
+
+        /*
+         * Jangan mengganggu Google Apps Script.
+         */
+        if (
+            url.origin !==
+            self.location.origin
+        ) {
+
+            return;
+
         }
-        return fetch(event.request); // Lanjut ke network
-      })
-  );
-});
 
-// Activate Event - Membersihkan cache lama
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
-});
+
+        if (
+            request.method !==
+            'GET'
+        ) {
+
+            return;
+
+        }
+
+
+        /*
+         * Untuk file aplikasi:
+         * NETWORK FIRST
+         *
+         * sehingga update GitHub
+         * segera bisa digunakan.
+         */
+
+        event.respondWith(
+
+            fetch(request)
+                .then(
+                    response => {
+
+                        const copy =
+                            response.clone();
+
+
+                        caches
+                            .open(
+                                CACHE_NAME
+                            )
+                            .then(
+                                cache =>
+                                    cache.put(
+                                        request,
+                                        copy
+                                    )
+                            );
+
+
+                        return response;
+
+                    }
+                )
+                .catch(
+                    () =>
+                        caches.match(
+                            request
+                        )
+                )
+
+        );
+
+    }
+);
