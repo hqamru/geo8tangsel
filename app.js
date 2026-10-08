@@ -2,13 +2,12 @@
 // CBT GEOGRAFI SMAN 8 KOTA TANGERANG SELATAN
 // ============================================================
 
-// URL Google Apps Script
 const GAS_URL =
-    'https://script.google.com/macros/s/AKfycbwVdZBp5P1vSfFWKCeLOY8YLwpoDDj5UpiCxdIYBLG5HgIgo-jua-UrGt6i9YkjavDB_Q/exec';
+    'https://script.google.com/macros/s/AKfycbyjrfCbZGCh4NkEel-mpJaFp6DPLXv0JJ1scb_a6428l4qXcXFotLJkmf11kH0bFGtW5A/exec';
 
 
 // ============================================================
-// DATA UJIAN
+// DATA
 // ============================================================
 
 let questions = [];
@@ -33,10 +32,12 @@ let submissionId =
     localStorage.getItem('cbt_submission_id') || '';
 
 let isExamRunning = false;
+let isSubmitting = false;
+let cheatDetected = false;
 
 
 // ============================================================
-// AMBIL ELEMEN HTML
+// ELEMENT
 // ============================================================
 
 const startScreen =
@@ -75,34 +76,20 @@ const progressText =
 const progressBar =
     document.getElementById('progress-bar');
 
+const processingPopup =
+    document.getElementById('processing-popup');
 
-// ============================================================
-// PENGAMAN
-// ============================================================
-
-if (!btnMulai) {
-
-    console.error(
-        'ERROR: btn-mulai tidak ditemukan.'
-    );
-
-} else {
-
-    console.log(
-        'CBT JavaScript berhasil dimuat.'
-    );
-
-}
+const cheatPopup =
+    document.getElementById('cheat-popup');
 
 
 // ============================================================
-// FUNGSI ACAK
+// ACAK
 // ============================================================
 
 function shuffle(array) {
 
-    const result =
-        [...array];
+    const result = [...array];
 
     for (
         let i = result.length - 1;
@@ -112,8 +99,7 @@ function shuffle(array) {
 
         const j =
             Math.floor(
-                Math.random() *
-                (i + 1)
+                Math.random() * (i + 1)
             );
 
         [
@@ -132,7 +118,7 @@ function shuffle(array) {
 
 
 // ============================================================
-// ESCAPE HTML
+// ESCAPE
 // ============================================================
 
 function escapeHtml(value) {
@@ -141,9 +127,7 @@ function escapeHtml(value) {
         value === null ||
         value === undefined
     ) {
-
         return '';
-
     }
 
     return String(value)
@@ -152,22 +136,35 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+
+// ============================================================
+// ID SUBMISSION
+// ============================================================
+
+function createSubmissionId() {
+
+    return (
+        'CBT-' +
+        Date.now() +
+        '-' +
+        Math.random()
+            .toString(36)
+            .substring(2, 8)
+            .toUpperCase()
+    );
 
 }
 
 
 // ============================================================
-// TOMBOL MULAI
+// MULAI
 // ============================================================
 
 btnMulai.addEventListener(
     'click',
     async function () {
-
-        console.log(
-            'Tombol Mulai Ujian diklik.'
-        );
-
 
         const nama =
             document
@@ -175,14 +172,12 @@ btnMulai.addEventListener(
                 .value
                 .trim();
 
-
         const kelas =
             document
                 .getElementById('input-kelas')
                 .value;
 
 
-        // Validasi nama
         if (!nama) {
 
             alert(
@@ -194,31 +189,24 @@ btnMulai.addEventListener(
                 .focus();
 
             return;
+
         }
 
 
-        // Validasi kelas
         if (!kelas) {
 
             alert(
                 'Silakan pilih kelas terlebih dahulu.'
             );
 
-            document
-                .getElementById('input-kelas')
-                .focus();
-
             return;
+
         }
 
 
-        // Simpan data siswa
         studentData = {
-
             nama: nama,
-
             kelas: kelas
-
         };
 
 
@@ -228,8 +216,12 @@ btnMulai.addEventListener(
         );
 
 
-        // Reset pelanggaran
         violationCount = 0;
+
+        cheatDetected = false;
+
+        isSubmitting = false;
+
 
         localStorage.setItem(
             'cbt_violations',
@@ -237,15 +229,8 @@ btnMulai.addEventListener(
         );
 
 
-        // Buat ID ujian baru
         submissionId =
-            'CBT-' +
-            Date.now() +
-            '-' +
-            Math.random()
-                .toString(36)
-                .substring(2, 8)
-                .toUpperCase();
+            createSubmissionId();
 
 
         localStorage.setItem(
@@ -254,8 +239,6 @@ btnMulai.addEventListener(
         );
 
 
-        // Jika jawaban lama tidak cocok,
-        // kosongkan jawaban
         answers = {};
 
         localStorage.setItem(
@@ -264,7 +247,6 @@ btnMulai.addEventListener(
         );
 
 
-        // Masuk fullscreen
         try {
 
             if (
@@ -280,8 +262,7 @@ btnMulai.addEventListener(
         } catch (error) {
 
             console.log(
-                'Fullscreen tidak tersedia:',
-                error
+                'Fullscreen tidak tersedia.'
             );
 
         }
@@ -301,15 +282,9 @@ async function startExam() {
 
     isExamRunning = true;
 
+    startScreen.classList.add('hidden');
 
-    startScreen.classList.add(
-        'hidden'
-    );
-
-
-    examScreen.classList.remove(
-        'hidden'
-    );
+    examScreen.classList.remove('hidden');
 
 
     document
@@ -329,17 +304,10 @@ async function startExam() {
 
 async function fetchQuestions() {
 
-    loading.classList.remove(
-        'hidden'
-    );
+    loading.classList.remove('hidden');
 
 
     try {
-
-        console.log(
-            'Mengambil soal dari Google Apps Script...'
-        );
-
 
         const response =
             await fetch(
@@ -360,12 +328,6 @@ async function fetchQuestions() {
 
         const result =
             await response.json();
-
-
-        console.log(
-            'Data soal:',
-            result
-        );
 
 
         if (
@@ -393,26 +355,19 @@ async function fetchQuestions() {
         }
 
 
-        // ====================================================
-        // ACAK URUTAN SOAL
-        // ====================================================
-
+        // Acak soal
         questions =
             shuffle(
                 result.data
             );
 
 
-        // ====================================================
-        // ACAK PILIHAN JAWABAN
-        // ====================================================
-
+        // Acak pilihan
         questions =
             questions.map(
                 function (question) {
 
                     const options = [];
-
 
                     [
                         'a',
@@ -427,12 +382,9 @@ async function fetchQuestions() {
                                 'opsi_' +
                                 letter;
 
-
                             if (
-                                question[key] !==
-                                    undefined &&
-                                question[key] !==
-                                    null &&
+                                question[key] !== undefined &&
+                                question[key] !== null &&
                                 String(
                                     question[key]
                                 ).trim() !== ''
@@ -466,28 +418,16 @@ async function fetchQuestions() {
             );
 
 
-        loading.classList.add(
-            'hidden'
-        );
+        loading.classList.add('hidden');
 
+        questionContainer.classList.remove('hidden');
 
-        questionContainer.classList.remove(
-            'hidden'
-        );
+        navigation.classList.remove('hidden');
 
-
-        navigation.classList.remove(
-            'hidden'
-        );
-
-
-        btnSubmit.classList.remove(
-            'hidden'
-        );
+        btnSubmit.classList.add('hidden');
 
 
         currentQuestion = 0;
-
 
         renderQuestion();
 
@@ -526,7 +466,7 @@ async function fetchQuestions() {
 
 
 // ============================================================
-// TAMPILKAN SOAL
+// TAMPIL SOAL
 // ============================================================
 
 function renderQuestion() {
@@ -534,16 +474,12 @@ function renderQuestion() {
     if (
         questions.length === 0
     ) {
-
         return;
-
     }
 
 
     const question =
-        questions[
-            currentQuestion
-        ];
+        questions[currentQuestion];
 
 
     const savedAnswer =
@@ -559,22 +495,15 @@ function renderQuestion() {
             <div class="flex justify-between items-center mb-5">
 
                 <div class="text-sm font-bold text-blue-600">
-
-                    SOAL
-                    ${currentQuestion + 1}
-                    /
-                    ${questions.length}
-
+                    SOAL ${currentQuestion + 1} / ${questions.length}
                 </div>
 
                 <div class="text-sm text-gray-500">
-
                     ${
                         savedAnswer
                         ? '✓ Sudah dijawab'
                         : 'Belum dijawab'
                     }
-
                 </div>
 
             </div>
@@ -664,10 +593,6 @@ function renderQuestion() {
         html;
 
 
-    // ========================================================
-    // EVENT RADIO
-    // ========================================================
-
     const radios =
         questionContainer.querySelectorAll(
             'input[type="radio"]'
@@ -685,7 +610,6 @@ function renderQuestion() {
                         question.id,
                         radio.value
                     );
-
 
                     renderQuestion();
 
@@ -723,18 +647,11 @@ function saveAnswer(
         JSON.stringify(answers)
     );
 
-
-    console.log(
-        'Jawaban tersimpan:',
-        questionId,
-        value
-    );
-
 }
 
 
 // ============================================================
-// TOMBOL SEBELUMNYA
+// NAVIGASI
 // ============================================================
 
 btnPrev.addEventListener(
@@ -759,10 +676,6 @@ btnPrev.addEventListener(
     }
 );
 
-
-// ============================================================
-// TOMBOL BERIKUTNYA
-// ============================================================
 
 btnNext.addEventListener(
     'click',
@@ -789,7 +702,7 @@ btnNext.addEventListener(
 
 
 // ============================================================
-// NAVIGASI
+// NAVIGASI + TOMBOL SELESAI
 // ============================================================
 
 function updateNavigation() {
@@ -813,9 +726,18 @@ function updateNavigation() {
             'hidden'
         );
 
+        // TOMBOL HANYA DI SOAL TERAKHIR
+        btnSubmit.classList.remove(
+            'hidden'
+        );
+
     } else {
 
         btnNext.classList.remove(
+            'hidden'
+        );
+
+        btnSubmit.classList.add(
             'hidden'
         );
 
@@ -875,12 +797,22 @@ function updateProgress() {
 
 
 // ============================================================
-// KIRIM JAWABAN
+// KLIK SELESAI
 // ============================================================
 
 btnSubmit.addEventListener(
     'click',
     async function () {
+
+        if (
+            isSubmitting ||
+            cheatDetected
+        ) {
+
+            return;
+
+        }
+
 
         let unanswered = 0;
 
@@ -909,7 +841,7 @@ btnSubmit.addEventListener(
             const lanjut =
                 confirm(
                     `Masih ada ${unanswered} soal yang belum dijawab.\n\n` +
-                    `Apakah Anda yakin ingin mengirim?`
+                    `Apakah Anda yakin ingin menyelesaikan ujian?`
                 );
 
 
@@ -936,37 +868,59 @@ btnSubmit.addEventListener(
         }
 
 
-        await submitExam();
+        await submitExam(false);
 
     }
 );
 
 
 // ============================================================
-// SUBMIT KE GOOGLE APPS SCRIPT
+// SUBMIT
 // ============================================================
 
-async function submitExam() {
+async function submitExam(isCheat) {
 
-    btnSubmit.disabled =
-        true;
+    if (isSubmitting) {
+        return;
+    }
 
 
-    btnSubmit.textContent =
-        'Mengirim jawaban...';
+    isSubmitting = true;
+
+    isExamRunning = false;
+
+
+    cheatDetected =
+        isCheat;
+
+
+    btnSubmit.disabled = true;
+
+    btnPrev.disabled = true;
+
+    btnNext.disabled = true;
+
+
+    if (isCheat) {
+
+        cheatPopup.classList.remove(
+            'hidden'
+        );
+
+    } else {
+
+        showProcessing(
+            'Mengirim Hasil Ujian',
+            'Jawaban sedang diperiksa dan disimpan ke sistem.'
+        );
+
+    }
 
 
     if (!submissionId) {
 
         submissionId =
-            'CBT-' +
-            Date.now() +
-            '-' +
-            Math.random()
-                .toString(36)
-                .substring(2, 8)
-                .toUpperCase();
-
+            createSubmissionId();
 
         localStorage.setItem(
             'cbt_submission_id',
@@ -992,6 +946,9 @@ async function submitExam() {
 
         violations:
             violationCount,
+
+        cheat:
+            isCheat,
 
         submit_time:
             new Date().toISOString()
@@ -1026,8 +983,22 @@ async function submitExam() {
         );
 
 
-        btnSubmit.textContent =
-            'Memeriksa penyimpanan...';
+        if (isCheat) {
+
+            document
+                .getElementById('cheat-popup')
+                .querySelector('.mt-5')
+                .textContent =
+                'Hasil sedang diproses...';
+
+        } else {
+
+            document
+                .getElementById('processing-message')
+                .textContent =
+                'Data diterima. Sistem sedang menghitung nilai...';
+
+        }
 
 
         const berhasil =
@@ -1039,13 +1010,27 @@ async function submitExam() {
         if (!berhasil) {
 
             throw new Error(
-                'Server belum mengonfirmasi.'
+                'Server belum mengonfirmasi penyimpanan.'
             );
 
         }
 
 
+        if (isCheat) {
+
+            document
+                .getElementById('cheat-popup')
+                .querySelector('.mt-5')
+                .textContent =
+                'Hasil berhasil disimpan.';
+
+            await sleep(800);
+
+        }
+
+
         await showResult();
+
 
     } catch (error) {
 
@@ -1054,19 +1039,41 @@ async function submitExam() {
         );
 
 
-        alert(
-            'Jawaban belum dapat dikonfirmasi tersimpan.\n\n' +
-            'Jawaban Anda masih tersimpan di perangkat.\n\n' +
-            'Jangan tutup halaman. Silakan klik Kirim Ulang.'
-        );
+        isSubmitting = false;
 
 
-        btnSubmit.disabled =
-            false;
+        if (isCheat) {
 
+            cheatPopup.classList.add(
+                'hidden'
+            );
 
-        btnSubmit.textContent =
-            'Kirim Ulang Jawaban';
+            isExamRunning = false;
+
+            alert(
+                'Sistem belum dapat mengonfirmasi penyimpanan hasil.\n\n' +
+                'Jangan tutup halaman. Hubungi guru/pengawas.'
+            );
+
+        } else {
+
+            hideProcessing();
+
+            isExamRunning = true;
+
+            btnSubmit.disabled = false;
+
+            btnPrev.disabled = false;
+
+            btnNext.disabled = false;
+
+            alert(
+                'Jawaban belum dapat dikonfirmasi tersimpan.\n\n' +
+                'Jawaban Anda masih tersimpan di perangkat.\n\n' +
+                'Silakan coba kirim kembali.'
+            );
+
+        }
 
     }
 
@@ -1077,13 +1084,11 @@ async function submitExam() {
 // CEK SUBMISSION
 // ============================================================
 
-async function checkSubmission(
-    id
-) {
+async function checkSubmission(id) {
 
     for (
         let i = 0;
-        i < 15;
+        i < 20;
         i++
     ) {
 
@@ -1104,15 +1109,8 @@ async function checkSubmission(
                 await response.json();
 
 
-            console.log(
-                'Cek submission:',
-                result
-            );
-
-
             if (
-                result.status ===
-                    'success' &&
+                result.status === 'success' &&
                 result.found === true
             ) {
 
@@ -1123,7 +1121,7 @@ async function checkSubmission(
         } catch (error) {
 
             console.log(
-                'Cek gagal:',
+                'Cek submission gagal:',
                 error
             );
 
@@ -1141,17 +1139,10 @@ async function checkSubmission(
 
 
 // ============================================================
-// TAMPILKAN HASIL
+// HASIL
 // ============================================================
 
 async function showResult() {
-
-    isExamRunning = false;
-
-
-    const id =
-        submissionId;
-
 
     try {
 
@@ -1160,7 +1151,9 @@ async function showResult() {
                 GAS_URL +
                 '?action=getResult' +
                 '&submission_id=' +
-                encodeURIComponent(id) +
+                encodeURIComponent(
+                    submissionId
+                ) +
                 '&_=' +
                 Date.now()
             );
@@ -1170,28 +1163,55 @@ async function showResult() {
             await response.json();
 
 
-        console.log(
-            'HASIL:',
-            result
-        );
-
-
         if (
-            result.status ===
+            result.status !==
             'success'
         ) {
-
-            displayResult(
-                result.data
-            );
-
-        } else {
 
             throw new Error(
                 'Hasil tidak ditemukan.'
             );
 
         }
+
+
+        displayResult(
+            result.data
+        );
+
+
+        // keluar fullscreen
+        try {
+
+            if (
+                document.fullscreenElement &&
+                document.exitFullscreen
+            ) {
+
+                await document.exitFullscreen();
+
+            }
+
+        } catch (error) {}
+
+
+        // hapus data setelah hasil tampil
+        localStorage.removeItem(
+            'cbt_answers'
+        );
+
+        localStorage.removeItem(
+            'cbt_student'
+        );
+
+        localStorage.removeItem(
+            'cbt_submission_id'
+        );
+
+        localStorage.removeItem(
+            'cbt_violations'
+        );
+
 
     } catch (error) {
 
@@ -1200,55 +1220,37 @@ async function showResult() {
         );
 
 
-        alert(
-            'Jawaban sudah tersimpan, tetapi hasil nilai belum dapat ditampilkan. Silakan hubungi guru.'
+        hideProcessing();
+
+        cheatPopup.classList.add(
+            'hidden'
         );
 
-        return;
+
+        alert(
+            'Jawaban sudah tersimpan, tetapi hasil belum dapat ditampilkan.\n\n' +
+            'Silakan hubungi guru/pengawas.'
+        );
 
     }
-
-
-    // Keluar fullscreen
-    try {
-
-        if (
-            document.fullscreenElement &&
-            document.exitFullscreen
-        ) {
-
-            await document.exitFullscreen();
-
-        }
-
-    } catch (error) {}
-
-
-    // Hapus data setelah benar-benar sukses
-    localStorage.removeItem(
-        'cbt_answers'
-    );
-
-    localStorage.removeItem(
-        'cbt_student'
-    );
-
-    localStorage.removeItem(
-        'cbt_submission_id'
-    );
-
-    localStorage.removeItem(
-        'cbt_violations'
-    );
 
 }
 
 
 // ============================================================
-// HASIL
+// TAMPILKAN HASIL
 // ============================================================
 
 function displayResult(data) {
+
+    processingPopup.classList.add(
+        'hidden'
+    );
+
+    cheatPopup.classList.add(
+        'hidden'
+    );
+
 
     examScreen.classList.add(
         'hidden'
@@ -1304,6 +1306,117 @@ function displayResult(data) {
     ).textContent =
         data.total || 0;
 
+
+    document.getElementById(
+        'result-violations'
+    ).textContent =
+        data.pelanggaran || 0;
+
+
+    const status =
+        data.status ||
+        'UJIAN NORMAL';
+
+
+    const statusElement =
+        document.getElementById(
+            'result-status'
+        );
+
+
+    statusElement.textContent =
+        status;
+
+
+    if (
+        status ===
+        'TERINDIKASI KECURANGAN'
+    ) {
+
+        statusElement.className =
+            'font-bold rounded-lg p-3 result-status-cheat';
+
+
+        document.getElementById(
+            'result-header'
+        ).className =
+            'bg-red-600 text-white text-center p-8';
+
+
+        document.getElementById(
+            'result-icon'
+        ).textContent =
+            '⚠️';
+
+
+        document.getElementById(
+            'result-header-text'
+        ).textContent =
+            'Ujian dihentikan karena terindikasi kecurangan.';
+
+
+    } else {
+
+        statusElement.className =
+            'font-bold rounded-lg p-3 result-status-normal';
+
+
+        document.getElementById(
+            'result-header'
+        ).className =
+            'bg-green-600 text-white text-center p-8';
+
+
+        document.getElementById(
+            'result-icon'
+        ).textContent =
+            '✓';
+
+
+        document.getElementById(
+            'result-header-text'
+        ).textContent =
+            'Ujian telah selesai dan hasil berhasil direkam.';
+
+    }
+
+}
+
+
+// ============================================================
+// POPUP PROSES
+// ============================================================
+
+function showProcessing(
+    title,
+    message
+) {
+
+    document.getElementById(
+        'processing-title'
+    ).textContent =
+        title;
+
+
+    document.getElementById(
+        'processing-message'
+    ).textContent =
+        message;
+
+
+    processingPopup.classList.remove(
+        'hidden'
+    );
+
+}
+
+
+function hideProcessing() {
+
+    processingPopup.classList.add(
+        'hidden'
+    );
+
 }
 
 
@@ -1328,7 +1441,54 @@ function sleep(ms) {
 
 
 // ============================================================
-// ANTI CHEAT
+// DETEKSI KECURANGAN
+// ============================================================
+
+function registerViolation(
+    reason
+) {
+
+    if (
+        !isExamRunning ||
+        isSubmitting ||
+        cheatDetected
+    ) {
+
+        return;
+
+    }
+
+
+    violationCount++;
+
+
+    localStorage.setItem(
+        'cbt_violations',
+        String(
+            violationCount
+        )
+    );
+
+
+    console.warn(
+        'PELANGGARAN:',
+        reason,
+        'Jumlah:',
+        violationCount
+    );
+
+
+    // SATU PELANGGARAN = HENTIKAN UJIAN
+    cheatDetected = true;
+
+
+    submitExam(true);
+
+}
+
+
+// ============================================================
+// KLIK KANAN
 // ============================================================
 
 document.addEventListener(
@@ -1341,11 +1501,19 @@ document.addEventListener(
 
             event.preventDefault();
 
+            registerViolation(
+                'Klik kanan'
+            );
+
         }
 
     }
 );
 
+
+// ============================================================
+// KEYBOARD
+// ============================================================
 
 document.addEventListener(
     'keydown',
@@ -1364,7 +1532,7 @@ document.addEventListener(
             event.key.toLowerCase();
 
 
-        if (
+        const forbidden =
             event.key === 'F12' ||
             (
                 event.ctrlKey &&
@@ -1375,18 +1543,16 @@ document.addEventListener(
                     's',
                     'p'
                 ].includes(key)
-            )
-        ) {
+            );
+
+
+        if (forbidden) {
 
             event.preventDefault();
 
-
-            violationCount++;
-
-
-            localStorage.setItem(
-                'cbt_violations',
-                violationCount
+            registerViolation(
+                'Shortcut terlarang: ' +
+                event.key
             );
 
         }
@@ -1408,19 +1574,8 @@ document.addEventListener(
             isExamRunning
         ) {
 
-            violationCount++;
-
-
-            localStorage.setItem(
-                'cbt_violations',
-                violationCount
-            );
-
-
-            alert(
-                'PERINGATAN!\n\n' +
-                'Anda terdeteksi meninggalkan halaman ujian.\n\n' +
-                'Aktivitas dicatat oleh sistem.'
+            registerViolation(
+                'Meninggalkan halaman ujian'
             );
 
         }
@@ -1442,18 +1597,8 @@ document.addEventListener(
             isExamRunning
         ) {
 
-            violationCount++;
-
-
-            localStorage.setItem(
-                'cbt_violations',
-                violationCount
-            );
-
-
-            alert(
-                'PERINGATAN!\n\n' +
-                'Anda keluar dari layar penuh.'
+            registerViolation(
+                'Keluar dari fullscreen'
             );
 
         }
