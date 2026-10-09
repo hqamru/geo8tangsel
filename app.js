@@ -35,6 +35,82 @@ let isExamRunning = false;
 let isSubmitting = false;
 let cheatDetected = false;
 
+// ============================================================
+// TIMER UJIAN: 90 MENIT
+// ============================================================
+
+const EXAM_DURATION = 90 * 60; // 90 menit dalam detik
+
+let examEndTime = null;
+let timerInterval = null;
+
+const timerElement = document.getElementById('timer');
+
+function formatTime(totalSeconds) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return (
+        String(minutes).padStart(2, '0') +
+        ':' +
+        String(seconds).padStart(2, '0')
+    );
+}
+
+function stopExamTimer() {
+    if (timerInterval !== null) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+function updateExamTimer() {
+    if (!examEndTime || !timerElement) return;
+
+    const remaining = Math.max(
+        0,
+        Math.ceil((examEndTime - Date.now()) / 1000)
+    );
+
+    timerElement.textContent = '⏱ ' + formatTime(remaining);
+
+    if (remaining <= 300) {
+        timerElement.classList.remove(
+            'text-blue-600',
+            'text-orange-600'
+        );
+        timerElement.classList.add('text-red-600');
+        timerElement.classList.add('animate-pulse');
+    } else if (remaining <= 600) {
+        timerElement.classList.remove('text-blue-600');
+        timerElement.classList.add('text-orange-600');
+    }
+
+    if (remaining <= 0) {
+        stopExamTimer();
+
+        if (isExamRunning && !isSubmitting) {
+            submitExam(false, true);
+        }
+    }
+}
+
+function startExamTimer() {
+    stopExamTimer();
+
+    examEndTime = Date.now() + EXAM_DURATION * 1000;
+
+    timerElement.classList.remove(
+        'text-red-600',
+        'text-orange-600',
+        'animate-pulse'
+    );
+    timerElement.classList.add('text-blue-600');
+
+    updateExamTimer();
+
+    timerInterval = setInterval(updateExamTimer, 250);
+}
 
 // ============================================================
 // ELEMENT
@@ -429,8 +505,10 @@ async function fetchQuestions() {
 
         currentQuestion = 0;
 
-        renderQuestion();
-
+            renderQuestion();
+            
+            // Mulai hitung mundur setelah soal siap ditampilkan
+            startExamTimer();
 
     } catch (error) {
 
@@ -878,7 +956,7 @@ btnSubmit.addEventListener(
 // SUBMIT
 // ============================================================
 
-async function submitExam(isCheat) {
+async function submitExam(isCheat, isTimeout = false) {
 
     if (isSubmitting) {
         return;
@@ -889,6 +967,8 @@ async function submitExam(isCheat) {
 
     isExamRunning = false;
 
+    // Hentikan timer saat ujian dikirim
+        stopExamTimer();
 
     cheatDetected =
         isCheat;
@@ -901,21 +981,23 @@ async function submitExam(isCheat) {
     btnNext.disabled = true;
 
 
-    if (isCheat) {
-
-        cheatPopup.classList.remove(
-            'hidden'
-        );
-
-    } else {
-
-        showProcessing(
-            'Mengirim Hasil Ujian',
-            'Jawaban sedang diperiksa dan disimpan ke sistem.'
-        );
-
-    }
-
+        if (isCheat) {
+        
+            cheatPopup.classList.remove('hidden');
+        
+        } else {
+        
+            showProcessing(
+                isTimeout
+                    ? 'Waktu Ujian Habis'
+                    : 'Mengirim Hasil Ujian',
+        
+                isTimeout
+                    ? 'Waktu 90 menit telah berakhir. Jawaban Anda sedang dikirim otomatis.'
+                    : 'Jawaban sedang diperiksa dan disimpan ke sistem.'
+            );
+        
+        }
 
     if (!submissionId) {
 
